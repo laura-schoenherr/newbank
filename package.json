@@ -1,0 +1,10 @@
+{
+  "name": "node-js-example",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "yarn.lock": "^0.0.1-security"
+  }
+}
