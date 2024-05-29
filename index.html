@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kontostand prüfen</title>
   <style>
+    @font-face {
+      font-family: 'Grundschrift';
+      src: url('fonts/Grundschrift.woff2') format('woff2'),
+           url('fonts/Grundschrift.woff') format('woff'),
+           url('fonts/Grundschrift.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
     .withdrawal-container {
       max-width: 400px;
       margin: 0 auto;
@@ -12,7 +21,7 @@
       background-color: #f5f5f5;
       border-radius: 10px;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-      font-family: Arial, sans-serif; /* Changed to a web-safe font */
+      font-family: 'Grundschrift', Arial, sans-serif;
     }
 
     header {
@@ -27,6 +36,7 @@
 
     h1 {
       color: #003366;
+      font-family: 'Grundschrift', Arial, sans-serif;
     }
 
     .form-group {
@@ -37,7 +47,7 @@
       display: block;
       margin-bottom: 5px;
       color: #003366;
-      font-family: Arial, sans-serif; /* Changed to a web-safe font */
+      font-family: 'Grundschrift', Arial, sans-serif;
     }
 
     input {
@@ -46,7 +56,7 @@
       border: 1px solid #ddd;
       border-radius: 5px;
       box-sizing: border-box;
-      font-family: Arial, sans-serif; /* Changed to a web-safe font */
+      font-family: 'Grundschrift', Arial, sans-serif;
     }
 
     .btn-submit {
@@ -58,7 +68,7 @@
       border-radius: 5px;
       cursor: pointer;
       font-size: 16px;
-      font-family: Arial, sans-serif; /* Changed to a web-safe font */
+      font-family: 'Grundschrift', Arial, sans-serif;
     }
 
     .btn-submit:hover {
@@ -68,6 +78,28 @@
     .error-message {
       color: red;
       margin-top: 10px;
+      font-family: 'Grundschrift', Arial, sans-serif;
+    }
+
+    #cardList {
+      margin-top: 20px;
+      list-style-type: none;
+      padding: 0;
+      display: none; /* Initially hidden */
+    }
+
+    #cardList li {
+      padding: 10px;
+      background-color: #f9f9f9;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      font-family: 'Grundschrift', Arial, sans-serif;
+    }
+
+    #cardList li:hover {
+      background-color: #f1f1f1;
     }
   </style>
   <script src="http://localhost:3000/socket.io/socket.io.js"></script>
@@ -75,11 +107,26 @@
     document.addEventListener("DOMContentLoaded", function() {
       const socket = io('http://localhost:3000');
       const cardNumberInput = document.getElementById('card');
+      const cardNumberDisplay = document.getElementById('cardNumberDisplay');
       const balanceElement = document.getElementById('balance');
       const withdrawAmountInput = document.getElementById('withdraw-amount');
       const formContainer = document.getElementById('form-container');
       const balanceContainer = document.getElementById('balance-container');
       const errorMessageElement = document.getElementById('error-message');
+      const cardList = document.getElementById('cardList');
+      const toggleButton = document.getElementById('toggleButton');
+
+      // Check if there's a card value in localStorage and populate the input field
+      const storedCardValue = localStorage.getItem('card_value');
+      if (storedCardValue) {
+        const [storedCardNumber, storedBalance] = storedCardValue.split(',');
+        cardNumberInput.value = storedCardNumber;
+        cardNumberDisplay.value = storedCardNumber;
+        balanceElement.value = storedBalance;
+        balanceContainer.style.display = 'block';
+        formContainer.style.display = 'none';
+        localStorage.removeItem('card_value'); // Clear the stored card value
+      }
 
       socket.on('connect', () => {
         console.log('Connected to server');
@@ -88,18 +135,24 @@
       socket.on('initial_data', (data) => {
         data.forEach(card => {
           const listItem = document.createElement('li');
-          listItem.textContent = `ID: ${card.id}, Card Value: ${card.card_value}`;
-          document.getElementById('cardList').appendChild(listItem);
+          listItem.textContent = `ID: ${card.id}, Card Value: ${card.card_value}, Balance: ${card.money}`;
+          listItem.dataset.cardValue = card.card_value; // Store card value in data attribute
+          listItem.dataset.balance = card.money; // Store card balance in data attribute
+          listItem.addEventListener('click', () => {
+            cardNumberInput.value = listItem.dataset.cardValue;
+            cardNumberDisplay.value = listItem.dataset.cardValue;
+            balanceElement.value = listItem.dataset.balance;
+            balanceContainer.style.display = 'block';
+            formContainer.style.display = 'none';
+          });
+          cardList.appendChild(listItem);
         });
       });
 
       socket.on('new_card', (data) => {
-        const listItem = document.createElement('li');
-        listItem.textContent = `ID: ${data.id}, Card Value: ${data.card_value}`;
-        document.getElementById('cardList').appendChild(listItem);
-
-        // Set the card value in the input field
-        cardNumberInput.value = data.card_value;
+        // Store the new card value in localStorage and reload the page
+        localStorage.setItem('card_value', `${data.card_value},${data.money}`);
+        window.location.reload();
       });
 
       window.fetchCardData = async function() {
@@ -124,10 +177,24 @@
           const data = await response.json();
           console.log('Initial data response:', data); // Debugging
 
-          // Ensure the card number is displayed in the input field
+          // Ensure the card number and balance are displayed in the input fields and list
           cardNumberInput.value = cardNumber;
+          cardNumberDisplay.value = cardNumber;
           balanceElement.value = data.money;
+
+          const listItem = document.createElement('li');
+          listItem.textContent = `Card Value: ${cardNumber}, Balance: ${data.money}`;
+          listItem.dataset.cardValue = cardNumber; // Store card value in data attribute
+          listItem.dataset.balance = data.money; // Store card balance in data attribute
+          listItem.addEventListener('click', () => {
+            cardNumberInput.value = listItem.dataset.cardValue;
+            cardNumberDisplay.value = listItem.dataset.cardValue;
+            balanceElement.value = listItem.dataset.balance;
+          });
+          cardList.appendChild(listItem);
+
           balanceContainer.style.display = 'block';
+          formContainer.style.display = 'none';
         } catch (err) {
           errorMessageElement.textContent = 'Fehler: ' + err.message;
         }
@@ -168,10 +235,19 @@
         formContainer.style.display = 'block';
         balanceContainer.style.display = 'none';
         cardNumberInput.value = ''; // Clear the card number input field
+        cardNumberDisplay.value = ''; // Clear the card number display
         balanceElement.value = ''; // Clear the balance input field
         withdrawAmountInput.value = ''; // Clear the withdraw amount input field
         errorMessageElement.textContent = ''; // Clear error message
       }
+
+      toggleButton.addEventListener('click', () => {
+        if (cardList.style.display === 'none') {
+          cardList.style.display = 'block';
+        } else {
+          cardList.style.display = 'none';
+        }
+      });
     });
   </script>
 </head>
@@ -186,20 +262,25 @@
         <label for="card">Kartennummer</label>
         <input type="text" id="card" required>
       </div>
-      <div id="balance-container" style="display: none;">
-        <div class="form-group">
-          <label for="balance">Kontostand</label>
-          <input type="text" id="balance" disabled>
-        </div>
-        <div class="form-group">
-          <label for="withdraw-amount">Abhebungsbetrag</label>
-          <input type="number" id="withdraw-amount" required>
-        </div>
-      </div>
       <button class="btn-submit" onclick="fetchCardData()">Kontostand prüfen</button>
+    </div>
+    <div id="balance-container" style="display: none;">
+      <div class="form-group">
+        <label for="cardNumberDisplay">Kartennummer</label>
+        <input type="text" id="cardNumberDisplay" disabled>
+      </div>
+      <div class="form-group">
+        <label for="balance">Kontostand</label>
+        <input type="text" id="balance" disabled>
+      </div>
+      <div class="form-group">
+        <label for="withdraw-amount">Abhebungsbetrag</label>
+        <input type="number" id="withdraw-amount" required>
+      </div>
       <button class="btn-submit" onclick="withdrawMoney()">Abheben</button>
       <button class="btn-submit" onclick="goBackToCardNumber()">FERTIG</button>
     </div>
+    <button id="toggleButton" class="btn-submit">Toggle Card List</button>
     <div id="error-message" class="error-message"></div>
     <ul id="cardList"></ul>
   </div>

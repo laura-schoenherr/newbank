@@ -5,7 +5,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import db from './database.js';
 
-const PORT = 3000; // Define the PORT variable
+const PORT = 3000;
 
 const app = express();
 const server = http.createServer(app);
@@ -32,9 +32,11 @@ app.get('/card', (req, res) => {
                     if (err) {
                         return res.status(500).json({ error: "Database insertion error" });
                     }
+                    io.emit('new_card', { id: this.lastID, card_value: cardValue, money: initialMoney });
                     res.status(200).json({ money: initialMoney });
                 });
             } else {
+                io.emit('new_card', { id: row.id, card_value: row.card_value, money: row.money });
                 res.status(200).json({ money: row.money });
             }
         });
@@ -65,7 +67,7 @@ app.post('/withdraw', (req, res) => {
                     return res.status(500).json({ error: "Database update error" });
                 }
 
-                io.emit('new_card', { id: row.id, card_value, money: newBalance });
+                io.emit('new_card', { id: row.id, card_value: row.card_value, money: newBalance });
 
                 res.status(200).json({ new_money: newBalance });
             });
