@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kontostand prüfen</title>
+  <style>
+    .withdrawal-container {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      font-family: Arial, sans-serif; /* Changed to a web-safe font */
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      max-width: 100px;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      color: #003366;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #003366;
+      font-family: Arial, sans-serif; /* Changed to a web-safe font */
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif; /* Changed to a web-safe font */
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 10px;
+      background-color: #ff6600;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      font-family: Arial, sans-serif; /* Changed to a web-safe font */
+    }
+
+    .btn-submit:hover {
+      background-color: #cc5200;
+    }
+
+    .error-message {
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+  <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const socket = io('http://localhost:3000');
+      const cardNumberInput = document.getElementById('card');
+      const balanceElement = document.getElementById('balance');
+      const withdrawAmountInput = document.getElementById('withdraw-amount');
+      const formContainer = document.getElementById('form-container');
+      const balanceContainer = document.getElementById('balance-container');
+      const errorMessageElement = document.getElementById('error-message');
+
+      socket.on('connect', () => {
+        console.log('Connected to server');
+      });
+
+      socket.on('initial_data', (data) => {
+        data.forEach(card => {
+          const listItem = document.createElement('li');
+          listItem.textContent = `ID: ${card.id}, Card Value: ${card.card_value}`;
+          document.getElementById('cardList').appendChild(listItem);
+        });
+      });
+
+      socket.on('new_card', (data) => {
+        const listItem = document.createElement('li');
+        listItem.textContent = `ID: ${data.id}, Card Value: ${data.card_value}`;
+        document.getElementById('cardList').appendChild(listItem);
+
+        // Set the card value in the input field
+        cardNumberInput.value = data.card_value;
+      });
+
+      window.fetchCardData = async function() {
+        const cardNumber = cardNumberInput.value;
+
+        errorMessageElement.textContent = ''; // Clear previous error message
+
+        try {
+          const response = await fetch(`http://localhost:3000/card?card_value=${encodeURIComponent(cardNumber)}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            errorMessageElement.textContent = errorData.error;
+            return;
+          }
+
+          const data = await response.json();
+          console.log('Initial data response:', data); // Debugging
+
+          // Ensure the card number is displayed in the input field
+          cardNumberInput.value = cardNumber;
+          balanceElement.value = data.money;
+          balanceContainer.style.display = 'block';
+        } catch (err) {
+          errorMessageElement.textContent = 'Fehler: ' + err.message;
+        }
+      }
+
+      window.withdrawMoney = async function() {
+        const cardNumber = cardNumberInput.value;
+        const withdrawAmount = withdrawAmountInput.value;
+
+        errorMessageElement.textContent = ''; // Clear previous error message
+
+        try {
+          const response = await fetch(`http://localhost:3000/withdraw`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ card_value: cardNumber, amount: withdrawAmount }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            errorMessageElement.textContent = errorData.error;
+            return;
+          }
+
+          const data = await response.json();
+          console.log('Withdrawal response:', data); // Debugging
+
+          balanceElement.value = data.new_money;
+          withdrawAmountInput.value = ''; // Clear withdraw amount input
+        } catch (err) {
+          errorMessageElement.textContent = 'Fehler: ' + err.message;
+        }
+      }
+
+      window.goBackToCardNumber = function() {
+        formContainer.style.display = 'block';
+        balanceContainer.style.display = 'none';
+        cardNumberInput.value = ''; // Clear the card number input field
+        balanceElement.value = ''; // Clear the balance input field
+        withdrawAmountInput.value = ''; // Clear the withdraw amount input field
+        errorMessageElement.textContent = ''; // Clear error message
+      }
+    });
+  </script>
+</head>
+<body>
+  <div class="withdrawal-container">
+    <header>
+      <img src="assets/logo.png" alt="Die Lansemann Bank Logo" class="logo" />
+      <h1>Geld abheben</h1>
+    </header>
+    <div id="form-container">
+      <div class="form-group">
+        <label for="card">Kartennummer</label>
+        <input type="text" id="card" required>
+      </div>
+      <div id="balance-container" style="display: none;">
+        <div class="form-group">
+          <label for="balance">Kontostand</label>
+          <input type="text" id="balance" disabled>
+        </div>
+        <div class="form-group">
+          <label for="withdraw-amount">Abhebungsbetrag</label>
+          <input type="number" id="withdraw-amount" required>
+        </div>
+      </div>
+      <button class="btn-submit" onclick="fetchCardData()">Kontostand prüfen</button>
+      <button class="btn-submit" onclick="withdrawMoney()">Abheben</button>
+      <button class="btn-submit" onclick="goBackToCardNumber()">FERTIG</button>
+    </div>
+    <div id="error-message" class="error-message"></div>
+    <ul id="cardList"></ul>
+  </div>
+</body>
+</html>
