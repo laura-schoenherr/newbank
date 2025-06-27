@@ -8,7 +8,7 @@ db.serialize(() => {
         CREATE TABLE IF NOT EXISTS cards (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             card_value BLOB,
-            money INTEGER DEFAULT 20
+            money INTEGER DEFAULT 100
         )
     `);
 });
