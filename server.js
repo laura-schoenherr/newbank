@@ -27,7 +27,7 @@ app.get('/card', (req, res) => {
             }
             if (!row) {
                 // Create the card in the database if it does not exist
-                const initialMoney = 20; // Default initial money
+                const initialMoney = 100; // Default initial money
                 db.run("INSERT INTO cards (card_value, money) VALUES (?, ?)", [cardValue, initialMoney], function (err) {
                     if (err) {
                         return res.status(500).json({ error: "Database insertion error" });
